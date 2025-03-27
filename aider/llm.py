@@ -40,7 +40,8 @@ class LazyLiteLLM:
         self._lazy_module.set_verbose = False
         self._lazy_module.drop_params = True
         self._lazy_module._logging._disable_debugging()
-
+        self._lazy_module.success_callback = ["langfuse"]
+        self._lazy_module.litellm.failure_callback = ["langfuse"]
 
 litellm = LazyLiteLLM()
 

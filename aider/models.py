@@ -808,6 +808,8 @@ class Model(ModelSettings):
             dump(kwargs)
         kwargs["messages"] = messages
 
+        ts = time.strftime('%Y-%m-%d', time.gmtime())
+        kwargs["metadata"] = {"trace_id": f"aider-{ts}", "trace_name": f"aider-{ts}", "generation_name": "aider-gen", "timestamp": ts}
         res = litellm.completion(**kwargs)
         return hash_object, res
 

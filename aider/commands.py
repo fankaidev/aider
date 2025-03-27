@@ -273,6 +273,7 @@ class Commands:
         return commands
 
     def do_run(self, cmd_name, args):
+        print("do run ", cmd_name, args)
         cmd_name = cmd_name.replace("-", "_")
         cmd_method_name = f"cmd_{cmd_name}"
         cmd_method = getattr(self, cmd_method_name, None)

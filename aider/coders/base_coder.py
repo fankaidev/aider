@@ -122,6 +122,7 @@ class Coder:
         summarize_from_coder=True,
         **kwargs,
     ):
+        print("create coder", kwargs)
         import aider.coders as coders
 
         if not main_model:
