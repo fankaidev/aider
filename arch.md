@@ -377,6 +377,136 @@ def _generic_chat_command(self, args, edit_format, placeholder=None):
 
 每种模式都针对特定的使用场景进行了优化，选择合适的模式可以提高 AI 辅助编程的效率和质量。
 
+## 反思机制
+
+Aider 通过 `reflected_message` 机制实现自动多轮对话,主要用于处理需要多次交互的场景。
+
+### 核心实现
+
+```python
+def run_one(self, user_message, preproc):
+    # 1. 初始化
+    self.init_before_message()
+
+    # 2. 预处理用户输入
+    if preproc:
+        message = self.preproc_user_input(user_message)
+    else:
+        message = user_message
+
+    # 3. 循环处理reflected_message
+    while message:
+        self.reflected_message = None
+        list(self.send_message(message))
+
+        # 如果没有反思消息,退出循环
+        if not self.reflected_message:
+            break
+
+        # 检查反思次数限制
+        if self.num_reflections >= self.max_reflections:
+            self.io.tool_warning(f"Only {self.max_reflections} reflections allowed, stopping.")
+            return
+
+        # 使用反思消息作为新的输入
+        self.num_reflections += 1
+        message = self.reflected_message
+```
+
+### 触发场景
+
+反思机制在以下三种场景下自动触发:
+
+1. **需要添加新文件**:
+```python
+def send_message(self, inp):
+    # ...
+    if not interrupted:
+        add_rel_files_message = self.check_for_file_mentions(content)
+        if add_rel_files_message:
+            self.reflected_message = add_rel_files_message
+            return
+```
+
+2. **Lint 检查失败**:
+```python
+if edited and self.auto_lint:
+    lint_errors = self.lint_edited(edited)
+    self.auto_commit(edited, context="Ran the linter")
+    self.lint_outcome = not lint_errors
+    if lint_errors:
+        ok = self.io.confirm_ask("Attempt to fix lint errors?")
+        if ok:
+            self.reflected_message = lint_errors
+            return
+```
+
+3. **测试失败**:
+```python
+if edited and self.auto_test:
+    test_errors = self.commands.cmd_test(self.test_cmd)
+    self.test_outcome = not test_errors
+    if test_errors:
+        ok = self.io.confirm_ask("Attempt to fix test errors?")
+        if ok:
+            self.reflected_message = test_errors
+            return
+```
+
+### 工作流程
+
+1. **初始请求**:
+   - 用户输入被发送给 LLM
+   - 系统处理 LLM 的响应
+
+2. **检测触发条件**:
+   - 检查是否需要添加新文件
+   - 运行 lint 检查
+   - 执行测试
+
+3. **自动续期**:
+   - 如果检测到需要进一步处理
+   - 设置 `reflected_message`
+   - 触发新一轮 LLM 请求
+
+4. **循环终止**:
+   - 当 `reflected_message` 为 None
+   - 或达到最大反思次数 (`max_reflections`,默认为3)
+
+### 优势
+
+1. **自动化处理**:
+   - 无需用户手动触发后续请求
+   - 系统自动处理常见的编码场景
+
+2. **状态传递**:
+   - 使用 `reflected_message` 在请求之间传递上下文
+   - 保持对话的连贯性
+
+3. **限制保护**:
+   - 通过 `max_reflections` 防止无限循环
+   - 用户可以随时中断
+
+### 使用示例
+
+```
+用户: 创建一个新的用户认证模块
+↓
+LLM: 好的,我需要创建以下文件:
+- auth.py
+- tests/test_auth.py
+↓
+系统: 检测到新文件提及,设置 reflected_message
+↓
+LLM: 我已经创建了文件,现在实现认证逻辑
+↓
+系统: 运行 lint 检查,发现错误,设置 reflected_message
+↓
+LLM: 修复 lint 错误
+↓
+系统: 运行测试,全部通过,对话结束
+```
+
 ## 结论
 
 Aider 的命令处理架构遵循清晰、模块化的设计：

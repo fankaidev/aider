@@ -903,6 +903,7 @@ class Coder:
             self.reflected_message = None
             list(self.send_message(message))
 
+            print("reflected_message:", self.reflected_message)
             if not self.reflected_message:
                 break
 
