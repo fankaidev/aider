@@ -298,6 +298,85 @@ Aider 使用动态方法进行命令注册：
 
 2. **全局错误处理**：`run()` 中的主命令执行处理模糊或无效命令。
 
+## 聊天模式的基本流程
+
+Aider 提供了几种不同的聊天模式，每种模式都有特定的用途和工作流程。
+
+### 聊天模式类型
+
+1. **`/ask` 模式**
+   - **用途**：询问关于代码的问题，不进行修改
+   - **工作流程**：
+     - 用户提问 → AI 分析代码 → 提供解释和建议
+     - 不生成编辑指令，只提供信息
+   - **适用场景**：理解代码、获取建议、学习新概念
+
+2. **`/code` 模式**
+   - **用途**：默认编辑模式，使用最佳编辑格式修改代码
+   - **工作流程**：
+     - 用户请求 → AI 分析代码 → 生成编辑指令 → 应用更改
+     - 根据模型能力选择最合适的编辑格式
+   - **适用场景**：日常编码、实现功能、修复 bug
+
+3. **`/architect` 模式**
+   - **用途**：使用两个模型（架构师和编辑器）处理复杂任务
+   - **工作流程**：
+     - 用户请求 → 架构师模型设计方案 → 编辑器模型实现代码
+     - 两个模型协同工作，提供更全面的解决方案
+   - **适用场景**：大型重构、系统设计、复杂功能实现
+
+4. **`/context` 模式**
+   - **用途**：自动识别需要编辑的文件
+   - **工作流程**：
+     - 用户请求 → AI 分析需求 → 自动添加相关文件 → 生成编辑指令
+     - 减少手动添加文件的需要
+   - **适用场景**：不熟悉的代码库、跨多文件的功能
+
+### 模式切换机制
+
+聊天模式的切换通过 `_generic_chat_command` 方法实现：
+
+```python
+def _generic_chat_command(self, args, edit_format, placeholder=None):
+    if not args.strip():
+        # 无参数时切换到相应的聊天模式
+        return self.cmd_chat_mode(edit_format)
+
+    # 有参数时，创建临时 Coder 实例
+    coder = Coder.create(
+        io=self.io,
+        from_coder=self.coder,
+        edit_format=edit_format,
+        summarize_from_coder=False,
+    )
+
+    # 运行用户消息
+    user_msg = args
+    coder.run(user_msg)
+
+    # 切换回原始模式
+    raise SwitchCoder(
+        edit_format=self.coder.edit_format,
+        summarize_from_coder=False,
+        from_coder=coder,
+        show_announcements=False,
+        placeholder=placeholder,
+    )
+```
+
+这种设计允许两种使用方式：
+1. **切换默认模式**：输入命令不带参数（如 `/architect`）
+2. **一次性使用**：输入命令加参数（如 `/architect 重构这个函数`）
+
+### 模式选择建议
+
+- 对于简单的代码修改和日常任务，使用 `/code` 模式
+- 对于复杂的设计和重构，使用 `/architect` 模式
+- 当只需要解释而不需要修改代码时，使用 `/ask` 模式
+- 在不熟悉的代码库中工作时，使用 `/context` 模式
+
+每种模式都针对特定的使用场景进行了优化，选择合适的模式可以提高 AI 辅助编程的效率和质量。
+
 ## 结论
 
 Aider 的命令处理架构遵循清晰、模块化的设计：
