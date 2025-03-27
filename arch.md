@@ -1,20 +1,20 @@
-# Aider Command Processing Architecture
+# Aider 命令处理架构
 
-## Overview
+## 概述
 
-Aider is a command-line AI pair programming tool that uses a command-based interface to interact with users. This document analyzes how commands are processed in Aider, from user input to execution and response.
+Aider 是一个命令行 AI 结对编程工具，使用基于命令的接口与用户交互。本文档分析了 Aider 中命令的处理流程，从用户输入到执行和响应的全过程。
 
-## Core Components
+## 核心组件
 
-### 1. Entry Point (`aider/main.py`)
+### 1. 入口点 (`aider/main.py`)
 
-The main entry point initializes the application and sets up the command processing pipeline:
+主入口点初始化应用程序并设置命令处理管道：
 
 ```python
 # Command initialization in main.py
 commands = Commands(
     io,
-    None,  # coder is set later
+    None,  # coder 稍后设置
     voice_language=args.voice_language,
     voice_input_device=args.voice_input_device,
     voice_format=args.voice_format,
@@ -26,67 +26,67 @@ commands = Commands(
     original_read_only_fnames=read_only_fnames,
 )
 
-# Later, the commands object is passed to the coder
+# 之后，commands 对象被传递给 coder
 coder = Coder.create(
-    # ... other parameters ...
+    # ... 其他参数 ...
     commands=commands,
-    # ... other parameters ...
+    # ... 其他参数 ...
 )
 
-# Set the coder reference in commands
+# 设置 commands 中的 coder 引用
 commands.coder = coder
 ```
 
-### 2. Input Handling (`aider/io.py`)
+### 2. 输入处理 (`aider/io.py`)
 
-The `InputOutput` class manages user interaction:
+`InputOutput` 类管理用户交互：
 
 ```python
 def get_input(self, root, rel_fnames, addable_rel_fnames, commands, abs_read_only_fnames=None, edit_format=None):
-    # Display prompt and files
+    # 显示提示和文件
     self.rule()
-    # ... display logic ...
+    # ... 显示逻辑 ...
 
-    # Get user input with command completion
+    # 使用命令补全获取用户输入
     inp = ""
-    # ... input handling logic ...
+    # ... 输入处理逻辑 ...
 
-    # Return the user input
+    # 返回用户输入
     return inp
 ```
 
-Key features:
-- Displays the prompt and available files
-- Handles multiline input
-- Provides command completion via `AutoCompleter`
-- Manages input history
+主要特性：
+- 显示提示和可用文件
+- 处理多行输入
+- 通过 `AutoCompleter` 提供命令补全
+- 管理输入历史
 
-### 3. Command Processing (`aider/commands.py`)
+### 3. 命令处理 (`aider/commands.py`)
 
-The `Commands` class is the central component for command processing:
+`Commands` 类是命令处理的核心组件：
 
 ```python
 def run(self, inp):
-    # Handle shell commands (starting with !)
+    # 处理shell命令（以!开头）
     if inp.startswith("!"):
         self.coder.event("command_run")
         return self.do_run("run", inp[1:])
 
-    # Find matching commands
+    # 查找匹配的命令
     res = self.matching_commands(inp)
     if res is None:
         return
     matching_commands, first_word, rest_inp = res
 
-    # Execute the command
+    # 执行命令
     if len(matching_commands) == 1:
         command = matching_commands[0][1:]
         self.coder.event(f"command_{command}")
         return self.do_run(command, rest_inp)
-    # ... handle ambiguous or invalid commands ...
+    # ... 处理模糊或无效命令 ...
 ```
 
-Command discovery:
+命令发现：
 ```python
 def get_commands(self):
     commands = []
@@ -99,26 +99,26 @@ def get_commands(self):
     return commands
 ```
 
-### 4. Command Implementation
+### 4. 命令实现
 
-Commands are implemented as methods in the `Commands` class with the naming pattern `cmd_*`:
+命令以 `cmd_*` 命名模式在 `Commands` 类中实现：
 
 ```python
 def cmd_undo(self, args):
-    "Undo the last git commit if it was done by aider"
+    "撤销 aider 执行的最后一次 git 提交"
     try:
         self.raw_cmd_undo(args)
     except ANY_GIT_ERROR as err:
-        self.io.tool_error(f"Unable to complete undo: {err}")
+        self.io.tool_error(f"无法完成撤销操作：{err}")
 
 def raw_cmd_undo(self, args):
-    # Implementation details
+    # 实现细节
     # ...
 ```
 
-### 5. Command Completion
+### 5. 命令补全
 
-The `AutoCompleter` class in `io.py` provides command completion:
+`io.py` 中的 `AutoCompleter` 类提供命令补全：
 
 ```python
 def get_command_completions(self, document, complete_event, text, words):
@@ -128,12 +128,12 @@ def get_command_completions(self, document, complete_event, text, words):
         for candidate in sorted(candidates):
             yield Completion(candidate, start_position=-len(words[-1]))
         return
-    # ... more completion logic ...
+    # ... 更多补全逻辑 ...
 ```
 
-### 6. Integration with Coder (`aider/coders/base_coder.py`)
+### 6. 与 Coder 的集成 (`aider/coders/base_coder.py`)
 
-The `Coder` class uses commands for user interaction:
+`Coder` 类使用命令进行用户交互：
 
 ```python
 def run(self, with_message=None, preproc=True):
@@ -153,91 +153,81 @@ def run(self, with_message=None, preproc=True):
                 self.keyboard_interrupt()
     except EOFError:
         return
-
-def preproc_user_input(self, inp):
-    if not inp:
-        return
-
-    if self.commands.is_command(inp):
-        return self.commands.run(inp)
-
-    # ... other preprocessing ...
-    return inp
 ```
 
-## Command Flow Sequence
+## 命令流程序列
 
-1. **Input Capture**:
-   - `Coder.run()` calls `get_input()` to get user input
-   - `InputOutput.get_input()` displays prompt and captures input
+1. **输入捕获**：
+   - `Coder.run()` 调用 `get_input()` 获取用户输入
+   - `InputOutput.get_input()` 显示提示并捕获输入
 
-2. **Command Detection**:
-   - `Coder.preproc_user_input()` checks if input is a command
-   - If it's a command, it calls `Commands.run()`
+2. **命令检测**：
+   - `Coder.preproc_user_input()` 检查输入是否为命令
+   - 如果是命令，则调用 `Commands.run()`
 
-3. **Command Matching**:
-   - `Commands.matching_commands()` identifies the command
-   - Handles ambiguous commands and partial matches
+3. **命令匹配**：
+   - `Commands.matching_commands()` 识别命令
+   - 处理模糊命令和部分匹配
 
-4. **Command Execution**:
-   - `Commands.do_run()` calls the appropriate command method
-   - Command methods (e.g., `cmd_undo()`) implement the command logic
+4. **命令执行**：
+   - `Commands.do_run()` 调用相应的命令方法
+   - 命令方法（如 `cmd_undo()`）实现命令逻辑
 
-5. **Response Handling**:
-   - Command methods use `io.tool_output()` to display results
-   - Some commands may modify the coder state or repository
+5. **响应处理**：
+   - 命令方法使用 `io.tool_output()` 显示结果
+   - 某些命令可能修改 coder 状态或仓库
 
-## Special Command Types
+## 特殊命令类型
 
-### 1. Mode-Switching Commands
+### 1. 模式切换命令
 
-Commands like `/chat-mode` switch between different editing modes:
+类似 `/chat-mode` 的命令用于切换不同的编辑模式：
 
 ```python
 def cmd_chat_mode(self, args):
-    "Switch to a new chat mode"
-    # ... implementation ...
+    "切换到新的聊天模式"
+    # ... 实现 ...
     raise SwitchCoder(
         edit_format=edit_format,
         summarize_from_coder=summarize_from_coder,
     )
 ```
 
-These commands raise a `SwitchCoder` exception that is caught in `main.py` to create a new coder instance.
+这些命令引发 `SwitchCoder` 异常，由 `main.py` 捕获以创建新的 coder 实例。
 
-### 2. Shell Commands
+### 2. Shell 命令
 
-Shell commands (prefixed with `!`) are handled by the `cmd_run` method:
+Shell 命令（以 `!` 为前缀）由 `cmd_run` 方法处理：
 
 ```python
 def cmd_run(self, args, add_on_nonzero_exit=False):
-    "Run a shell command and optionally add the output to the chat (alias: !)"
+    "运行 shell 命令并可选择将输出添加到聊天中（别名：!）"
     exit_status, combined_output = run_cmd(
         args, verbose=self.verbose, error_print=self.io.tool_error, cwd=self.coder.root
     )
-    # ... handle output ...
+    # ... 处理输出 ...
 ```
 
-### 3. Git Integration Commands
+### 3. Git 集成命令
 
-Commands like `/commit` and `/undo` interact with the Git repository:
+像 `/commit` 和 `/undo` 这样的命令与 Git 仓库交互：
 
 ```python
 def cmd_commit(self, args=None):
-    "Commit edits to the repo made outside the chat (commit message optional)"
+    "提交在聊天外部对仓库所做的编辑（提交信息可选）"
     try:
         self.raw_cmd_commit(args)
     except ANY_GIT_ERROR as err:
-        self.io.tool_error(f"Unable to complete commit: {err}")
+        self.io.tool_error(f"无法完成提交：{err}")
 ```
 
-## Architecture Diagram
+## 架构图
 
 ```
 ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
 │                 │      │                 │      │                 │
 │  main.py        │──────▶  Coder          │──────▶  InputOutput    │
-│  (entry point)  │      │  (base_coder.py)│      │  (io.py)        │
+│  (入口点)        │      │  (base_coder.py)│      │  (io.py)       │
 │                 │      │                 │      │                 │
 └─────────────────┘      └────────┬────────┘      └────────┬────────┘
                                   │                         │
@@ -254,8 +244,8 @@ def cmd_commit(self, args=None):
                                   ▼
                          ┌─────────────────┐
                          │                 │
-                         │ Command Handlers│
-                         │  (cmd_* methods)│
+                         │ 命令处理器       │
+                         │ (cmd_* 方法)     │
                          │                 │
                          └────────┬────────┘
                                   │
@@ -265,59 +255,59 @@ def cmd_commit(self, args=None):
 ▼                                 ▼                                 ▼
 ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
 │                 │      │                 │      │                 │
-│  Repository     │      │  LLM Models     │      │  File System    │
-│  (repo.py)      │      │                 │      │  Operations     │
+│  代码仓库        │      │  LLM 模型       │      │  文件系统       │
+│  (repo.py)      │      │                 │      │  操作          │
 │                 │      │                 │      │                 │
 └─────────────────┘      └─────────────────┘      └─────────────────┘
 ```
 
-## Command Registration and Discovery
+## 命令注册和发现
 
-Aider uses a dynamic approach to command registration:
+Aider 使用动态方法进行命令注册：
 
-1. **Implicit Registration**: Any method in the `Commands` class that starts with `cmd_` is automatically considered a command.
+1. **隐式注册**：`Commands` 类中任何以 `cmd_` 开头的方法自动被视为命令。
 
-2. **Command Naming**: Command names are derived from method names by replacing underscores with hyphens and adding a slash prefix:
+2. **命令命名**：命令名称通过将方法名中的下划线替换为连字符并添加斜杠前缀来派生：
    ```python
-   # Method: cmd_commit
-   # Command: /commit
+   # 方法：cmd_commit
+   # 命令：/commit
    ```
 
-3. **Command Help**: The docstring of each command method serves as its help text.
+3. **命令帮助**：每个命令方法的文档字符串作为其帮助文本。
 
-4. **Command Completion**: Commands provide completions through dedicated methods:
+4. **命令补全**：命令通过专用方法提供补全：
    ```python
-   # For command: /model
+   # 对于命令：/model
    def completions_model(self):
        models = litellm.model_cost.keys()
        return models
    ```
 
-## Error Handling
+## 错误处理
 
-Commands implement error handling at multiple levels:
+命令在多个层面实现错误处理：
 
-1. **Command-Level Error Handling**: Many commands have a wrapper method that catches exceptions:
+1. **命令级错误处理**：许多命令都有一个包装方法来捕获异常：
    ```python
    def cmd_commit(self, args=None):
        try:
            self.raw_cmd_commit(args)
        except ANY_GIT_ERROR as err:
-           self.io.tool_error(f"Unable to complete commit: {err}")
+           self.io.tool_error(f"无法完成提交：{err}")
    ```
 
-2. **Global Error Handling**: The main command execution in `run()` handles ambiguous or invalid commands.
+2. **全局错误处理**：`run()` 中的主命令执行处理模糊或无效命令。
 
-## Conclusion
+## 结论
 
-Aider's command processing architecture follows a clean, modular design:
+Aider 的命令处理架构遵循清晰、模块化的设计：
 
-1. **Separation of Concerns**: Input handling, command processing, and command implementation are separated.
+1. **关注点分离**：输入处理、命令处理和命令实现是分离的。
 
-2. **Dynamic Discovery**: Commands are discovered through reflection, making it easy to add new commands.
+2. **动态发现**：通过反射发现命令，使添加新命令变得容易。
 
-3. **Consistent Interface**: All commands follow the same pattern, providing a consistent user experience.
+3. **一致的接口**：所有命令遵循相同的模式，提供一致的用户体验。
 
-4. **Extensibility**: The architecture allows for easy extension by adding new command methods.
+4. **可扩展性**：该架构通过添加新的命令方法可以轻松扩展。
 
-This architecture provides a flexible and maintainable system for processing user commands in Aider.
+这种架构为 Aider 中的用户命令处理提供了灵活且可维护的系统。
