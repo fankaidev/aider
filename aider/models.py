@@ -7,6 +7,7 @@ import os
 import platform
 import sys
 import time
+import uuid
 from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Optional, Union
@@ -21,6 +22,8 @@ from aider.sendchat import ensure_alternating_roles, sanity_check_messages
 from aider.utils import check_pip_install_extra
 
 RETRY_TIMEOUT = 60
+
+TRACE_ID = str(uuid.uuid4())[:8]
 
 request_timeout = 600
 
@@ -809,7 +812,7 @@ class Model(ModelSettings):
         kwargs["messages"] = messages
 
         ts = time.strftime('%Y-%m-%d', time.gmtime())
-        kwargs["metadata"] = {"trace_id": f"aider-{ts}", "trace_name": f"aider-{ts}", "generation_name": "aider-gen", "timestamp": ts}
+        kwargs["metadata"] = {"trace_id": f"aider-{ts}-{TRACE_ID}", "trace_name": f"aider-{ts}-{TRACE_ID}", "generation_name": "aider-gen", "timestamp": ts}
         res = litellm.completion(**kwargs)
         return hash_object, res
 
